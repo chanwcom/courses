@@ -23,6 +23,7 @@ db_top_dir = "/mnt/data/database"
 train_top_dir = os.path.join(db_top_dir, "stop_music/music_train")
 test_top_dir = os.path.join(db_top_dir, "stop_music/music_test0")
 processor = AutoProcessor.from_pretrained("facebook/wav2vec2-base")
+output_dir = "/mnt/data/home/chanwcom/experiment/wav2vec2_stop_model_final"
 
 train_dataset = sample_util.make_dataset(train_top_dir)
 test_dataset = sample_util.make_dataset(test_top_dir)
@@ -92,25 +93,26 @@ class DataCollatorCTCWithPadding:
             - "input_values": Padded input audio feature tensor.
             - "labels": Padded label tensor with padding tokens replaced by -100.
         """
-        # Separate the input audio features and label sequences from the batch.
+        # Separates the input audio features and label sequences from the batch.
         input_features = [{"input_values": feature["input_values"]} for feature in features]
+
         label_features = [{"input_ids": feature["labels"]} for feature in features]
 
-        # Use the processor's pad method to pad input audio features to the same length.
+        # Uses the processor's pad method to pad input audio features to the same length.
         batch = self.processor.pad(
             input_features,
             padding=self.padding,
             return_tensors="pt"
         )
 
-        # Pad the label sequences separately using the processor's pad method.
+        # Pads the label sequences separately using the processor's pad method.
         labels_batch = self.processor.pad(
             labels=label_features,
             padding=self.padding,
             return_tensors="pt"
         )
 
-        # Replace padding tokens in labels with -100 so that the loss function ignores them.
+        # Replaces padding tokens in labels with -100 so that the loss function ignores them.
         labels = labels_batch["input_ids"].masked_fill(
             labels_batch.attention_mask.ne(1), -100
         )
@@ -142,8 +144,7 @@ model = AutoModelForCTC.from_pretrained(
 # These control training hyperparameters and runtime behavior:
 training_args = TrainingArguments(
     # Directory to save model checkpoints and outputs.
-    output_dir="/home/chanwcom/local_repositories/cognitive_workflow_kit/tool/"
-               "models/asr_stop_model_final",
+    output_dir=output_dir,
 
     # Batch size per device (GPU/CPU) for training.
     per_device_train_batch_size=40,
@@ -158,7 +159,7 @@ training_args = TrainingArguments(
     warmup_steps=1000,
 
     # Total number of training steps.
-    max_steps=10000,
+    max_steps=2000,
 
     # Enable gradient checkpointing to reduce memory usage at the cost of extra compute.
     gradient_checkpointing=True,
@@ -173,7 +174,7 @@ training_args = TrainingArguments(
     per_device_eval_batch_size=40,
 
     # Save model checkpoints every N steps.
-    save_steps=5000,
+    save_steps=2000,
 
     # Run evaluation every N steps during training.
     eval_steps=100,

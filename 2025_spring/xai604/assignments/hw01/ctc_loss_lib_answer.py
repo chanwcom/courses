@@ -64,6 +64,42 @@ def to_blank_augmented_labels(
     assert isinstance(inputs, dict)
     assert {"SEQ_DATA", "SEQ_LEN"} <= inputs.keys()
 
+    # If some values are larger than blank_index, then those values are added
+    # by one to make a room for the blank index.
+    ids = torch.where(inputs["SEQ_DATA"] >= blank_index)
+    updated_data = inputs["SEQ_DATA"].clone().detach()
+    if update_non_blank_token_index:
+        updated_data[ids] = inputs["SEQ_DATA"][ids] + 1
+
+    output = {}
+    # Creates a tensor filled with blank values.
+    blank_tensor = torch.full(inputs["SEQ_DATA"].shape, fill_value=blank_index)
+
+    # updated_data is interleaved with the blank tensor using "stacking" and
+    # "reshaping".
+    if boundary_blanks:
+        data = torch.stack((blank_tensor, updated_data), axis=2)
+        data = torch.reshape(data, (updated_data.shape[0], -1))
+
+        # Concatenates a zero at the end of the sequence.
+        padded = torch.full((updated_data.shape[0], 1), fill_value=blank_index)
+        data = torch.concat((data, padded), axis=1)
+
+        # If boundary_blanks are not used, then the length is 2 * L + 1.
+        output["SEQ_LEN"] = 2 * inputs["SEQ_LEN"] + 1
+    else:
+        data = torch.stack((updated_data, blank_tensor), axis=2)
+        data = torch.reshape(data, (updated_data.shape[0], -1))
+        data = data[:, :-1]
+
+        # If boundary_blanks are not used, then the length is 2 * L - 1.
+        output["SEQ_LEN"] = 2 * inputs["SEQ_LEN"] - 1
+
+    mask = sequence_mask(output["SEQ_LEN"],
+                         maxlen=data.shape[1],
+                         dtype=data.dtype)
+    output["SEQ_DATA"] = data * mask
+
 
     return output
 
@@ -94,6 +130,35 @@ def label_trans_allowance_table(labels, labels_len):
         A tensor containing flags whether transitions are allowed.
             The shape is (batch_size, max_label_seq_len, max_seq_len)
     """
+    max_seq_len = torch.max(labels_len)
+    l = torch.arange(max_seq_len, dtype=torch.int32)
+
+    # Indices corresponding to i -> i.
+    indices0 = torch.stack([l, l], axis=1)
+
+    # Indices corresponding to i -> i + 1.
+    indices1 = torch.stack([l[:-1], l[:-1] + 1], axis=1)
+
+    # Indices corresponding to i -> i + 2.
+    indices2 = torch.stack([l[:-2], l[:-2] + 2], axis=1)
+
+    # Constructs the transition table.
+    indices = torch.concat([indices0, indices1, indices2], axis=0)
+    values = torch.zeros([indices.shape[0]])
+
+    trans_table = torch.full(size=(max_seq_len, max_seq_len), fill_value=LOG_0)
+    trans_table[torch.unbind(indices, axis=1)] = 0
+
+    batch_size = labels.shape[0]
+    trans_table = torch.tile(torch.unsqueeze(trans_table, axis=0),
+                             [batch_size, 1, 1])
+
+    # Detects repeats and blank to blank transitions.
+    #
+    # These cases can be detected by checking whether y[l] == y[l + 2].
+    indices = torch.where(labels[:, :-2] == labels[:, 2:])
+    indices = [indices[0], indices[1], indices[1] + 2]
+    trans_table[indices] = LOG_0
 
     return trans_table
 
@@ -117,8 +182,10 @@ def calculate_log_label_prob(labels, softmax_output):
     Returns:
         The shape is (batch, max_logit_len, max_labels_len).
     """
-    # TODO Implement your code!!!
-    return log_label_prob
+    max_logit_len = softmax_output.shape[1]
+    labels = torch.tile(torch.unsqueeze(labels, dim=1), (1, max_logit_len, 1))
+
+    return torch.log(torch.gather(input=softmax_output, dim=2, index=labels))
 
 
 def _calculate_unnormalized_log_seq_prob(log_alpha, accum_log_seq_prob_sum,
@@ -191,11 +258,17 @@ def calculate_alpha_beta(label_trans_table, log_label_prob, label_len,
     for t in range(max_logit_len):
         # Calculates log_alpha recursively from the previous time step.
 
-        # TODO Implement your code!!!
+        # Calculates log_alpha recursively from the previous time step.
+        log_alpha[:, t, :] = (
+            torch.logsumexp(
+                torch.add(torch.unsqueeze(prev_log_alpha, axis=2),
+                          label_trans_table),
+                dim=1) + log_label_prob[:, t, :]) # yapf: disable
 
         # Normalizes the log sequence prob.
-
-        # TODO Implement your code!!!
+        log_alpha_max = torch.max(log_alpha[:, t, :], axis=1,
+                                  keepdims=True).values
+        log_alpha[:, t, :] -= log_alpha_max
 
         # Accumulates the maximum.
         accum_log_alpha_max[:, t] = (prev_log_alpha_max +
@@ -215,12 +288,19 @@ def calculate_alpha_beta(label_trans_table, log_label_prob, label_len,
     next_log_label_prob = torch.zeros(size=(batch_size, max_label_len))
     for t in range(max_logit_len - 1, -1, -1):
         # Calculates log_beta recursively from the next time step.
+        log_beta[:, t, :] = (
+            torch.logsumexp(
+                torch.add(torch.unsqueeze(
+                    prev_log_beta + next_log_label_prob, 1),
+                    label_trans_table),
+                dim=2)) # yapf: disable
 
-        # TODO Implement your code!!!
+        next_log_label_prob = log_label_prob[:, t, :]
 
         # Normalizes the log beta prob. using the maximum value at time t.
-
-        # TODO Implement your code!!!
+        log_beta_max = torch.max(log_beta[:, t, :], axis=1,
+                                 keepdims=True).values
+        log_beta[:, t, :] -= log_beta_max
 
         # Correctly initializes log_beta from the length info.
         #

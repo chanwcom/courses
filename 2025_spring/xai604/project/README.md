@@ -68,7 +68,7 @@ https://drive.google.com/file/d/1j2z8xb4V5zTb6ChJafZZp8Gtt61_ma_1/view?usp=drive
 
 As before, you should decompress tar.gz files only once. We will use 10 sharded *.tar file for training and eval.
 
-# 4. Run the scripts in the "run" directory
+# 3. Run the scripts in the "run" directory
 
 If GPU0 is available, then set the following configuration variables:
 \
