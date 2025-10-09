@@ -33,8 +33,8 @@ Example usage:
         --shard_size_gb 0.1
 """
 
-import os
 import argparse
+import os
 import uuid
 from pathlib import Path
 from tqdm import tqdm

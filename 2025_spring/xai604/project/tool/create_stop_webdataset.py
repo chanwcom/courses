@@ -1,7 +1,42 @@
+#!usr/bin/python3
+""Convert Stop dataset into WebDataset format.
+
+This script scans a LibriSpeech split (e.g., train-clean-100) and creates
+.tar shard files containing FLAC audio and transcripts using the WebDataset
+format.
+
+Example usage:   
+    python create_stop_webdataset.py \
+        --dataset_dir 
+        --output_dir 
+        --shard_size_gb 
+
+    # Convert dev-clean with smaller shard size
+    python create_stop_webdataset.py \
+        --dataset_dir 
+        --output_dir 
+        --shard_size_gb 
+
+
+    # Batch process splits
+    for split in train-clean-100 train-clean-360 train-other-500; do
+          python create_stop_webdataset.py \
+        --dataset_dir 
+        --output_dir 
+        --shard_size_gb 
+    done
+
+    # Debug mode with very small shard
+    python create_librispeech_webdataset.py \
+        --dataset_dir ./LibriSpeech/dev-clean \
+        --output_dir ./wds/dev-clean-debug \
+        --shard_size_gb 0.1
+"""
+
 import argparse
+import os
 import json
 import jsonschema
-import os
 import re
 import uuid
 import webdataset as wds
@@ -200,6 +235,7 @@ def create_webdataset(audio_dir, output_dir, schema_path, shard_size_gb=1.0):
     manifest_path = str(tsv_files[0])
 
     shard_path = os.path.join(output_dir, "shard-%06d.tar")
+
     sink = wds.ShardWriter(shard_path, maxsize=shard_size_gb * BYTES_PER_GB)
 
     with open(manifest_path, "r", encoding="utf-8") as file_:
@@ -310,7 +346,9 @@ def main():
     effective_shard_size_gb = args.shard_size_gb
     if args.min_shard_count > 0:
         total_size_bytes = estimate_total_size(data_pairs)
-        min_shard_gb = total_size_bytes / args.min_shard_count / BYTES_PER_GB
+        # TODO(chanwcom) 2% margin is added.
+        # TODO(chanwcom) Remove this hack.
+        min_shard_gb = total_size_bytes / args.min_shard_count / BYTES_PER_GB  * 1.01
         if min_shard_gb < args.shard_size_gb:
             print(f"Adjusting shard size from {args.shard_size_gb:.3f} GB to "
                   f"{min_shard_gb:.3f} GB to satisfy min_shard_count="
