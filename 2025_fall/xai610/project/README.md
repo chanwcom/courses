@@ -1,53 +1,60 @@
-# 1. Setup the environment.
+# 1. Environment Setup
 
+This section describes how to set up the development environment required for running the project.
 
-Create the Conda environment.
+---
 
-`conda create --name py3_10_hf python=3.10`
+## 1.1. Create and Activate the Conda Environment
 
-Activate the Conda environment created just ago.
+    conda create --name py3_10_hf python=3.10
+    conda activate py3_10_hf
 
-`conda activate py3_10_hf`
+---
 
+## 1.2. Install PyTorch
 
-Install Pytorch.
+Visit the official PyTorch installation page:  
+👉 [https://pytorch.org/get-started/locally/](https://pytorch.org/get-started/locally/)
 
-https://pytorch.org/get-started/locally/
-Check the CUDA version
-\
-`nvcc --version`
+1. Check your **CUDA version** (e.g., 12.8).  
+2. Select the proper command at the bottom of the PyTorch installation table.  
+   For example, for CUDA 12.8:
 
-Select the command at the bottom of the table, after seleting the right "Compute Platform"
-For example, if the CUDA version is 11.8, then run the following command:
-Note that torchdata is added.
+        pip install torch torchvision
 
+Then, install **torchaudio**:
 
-`conda install pytorch torchvision torchaudio torchdata pytorch-cuda=11.8 -c pytorch -c nvidia`
-\
-`conda install tensorflow-cpu`
+    pip install torchaudio
 
-Install HuggingFace **Transformers** and **Datasets**.
-\
-`pip install transformers[torch] datasets`
+> 💡 **Note:**  
+> `torchaudio` depends on the PyTorch version, so make sure to match their versions.
 
-SoundFile installation
-\
-`pip install soundfile`
+---
 
-WebDataset installation:
-\
-`pip install webdataset`
+## 1.3. Install Additional Dependencies
 
-Librosa installtion
-\
-`conda install -c conda-forge librosa`
+Install `soundfile` to enable reading **FLAC audio files**:
 
-For speech recognition evaluation
-\
-`pip install evaluate jiwer`
+    pip install soundfile
 
-Reference:
-https://huggingface.co/docs/datasets/v1.11.0/installation.html
+Install Hugging Face libraries:
+
+    pip install "transformers[torch]" datasets
+
+Install **WebDataset** for dataset streaming:
+
+    pip install webdataset
+
+Install evaluation utilities for speech recognition:
+
+    pip install evaluate jiwer
+
+---
+
+## 1.4. References
+
+- [PyTorch Installation Guide](https://pytorch.org/get-started/locally/)  
+- [Hugging Face Datasets Installation](https://huggingface.co/docs/datasets/installation)
 
 
 
