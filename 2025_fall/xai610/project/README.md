@@ -17,29 +17,22 @@ Check the CUDA version
 \
 
 Select the command at the bottom of the table, after seleting the right "Compute Platform"
-For example, if the CUDA version is 11.8, then run the following command:
-Note that torchdata is added.
+For example, if the CUDA version is 12.8, then run the following command:
 
 
-`conda install pytorch torchvision torchaudio torchdata pytorch-cuda=11.8 -c pytorch -c nvidia`
+`pip3 install torch torchvision`
 \
-`conda install tensorflow-cpu`
+Addiionally install torchaudio
+`pip3 install torchaudio`
+
 
 Install HuggingFace **Transformers** and **Datasets**.
 \
 `pip install transformers[torch] datasets`
 
-SoundFile installation
-\
-`pip install soundfile`
-
 WebDataset installation:
 \
 `pip install webdataset`
-
-Librosa installtion
-\
-`conda install -c conda-forge librosa`
 
 For speech recognition evaluation
 \
