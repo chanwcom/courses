@@ -54,7 +54,7 @@ Install evaluation utilities for speech recognition:
 ## 1.4. References
 
 - [PyTorch Installation Guide](https://pytorch.org/get-started/locally/)  
-- [Hugging Face Datasets Installation](https://huggingface.co/docs/datasets/v1.11.0/installation.h
+- [Hugging Face Datasets Installation](https://huggingface.co/docs/datasets/installation)
 
 
 
