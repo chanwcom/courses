@@ -34,12 +34,17 @@ def preprocess_sample(sample: Dict) -> Dict:
             - 'input_values': processed audio feature tensor.
             - 'labels': list of token IDs corresponding to the transcript.
     """
-    waveform, sample_rate = torchaudio.load(io.BytesIO(sample["wav"]))
+    waveform, sample_rate = torchaudio.load(io.BytesIO(sample["audio"]))
     input_values = processor.feature_extractor(
         waveform[0], sampling_rate=sample_rate
     ).input_values[0]
 
-    text = sample["txt"].decode("utf-8")
+    # Processes text to handle both bytes and a string.
+    if isinstance(sample["text"], bytes):
+        text = sample["text"].decode("utf-8").strip()
+    else:
+        text = sample["text"].strip()
+
     labels = processor.tokenizer(text).input_ids
 
     return {"input_values": input_values, "labels": labels}
@@ -60,8 +65,9 @@ def make_dataset(data_dir: str) -> wds.WebDataset:
     """
     dataset = (
         wds.WebDataset(glob.glob(os.path.join(data_dir, "shard-*.tar")))
-        .to_tuple("wav", "txt")
-        .map(lambda sample: {"wav": sample[0], "txt": sample[1]})
-        .map(preprocess_sample)
+            .decode(wds.torch_audio)
+            .to_tuple("audio", "text", "meta")
+            .map(lambda sample: {"audio": sample[0], "text": sample[1], "meta": sample[2]})
+            .map(preprocess_sample)
     )
     return dataset

@@ -20,7 +20,7 @@ import numpy as np
 import sample_util
 
 db_top_dir = "/mnt/data/database"
-train_top_dir = os.path.join(db_top_dir, "libri_light/1hr")
+train_top_dir = os.path.join(db_top_dir, "libri_light/1h")
 test_top_dir = os.path.join(
     db_top_dir, "libri_speech_webdataset_new_oct_2025/test-clean")
 processor = AutoProcessor.from_pretrained("facebook/wav2vec2-base")
