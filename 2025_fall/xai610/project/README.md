@@ -22,8 +22,12 @@ For example, if the CUDA version is 12.8, then run the following command:
 
 `pip3 install torch torchvision`
 \
-Addiionally install torchaudio
+Addiionally install torchaudio:
+\
 `pip3 install torchaudio`
+Install pysoundfile to read "flac audio formats"
+\
+`pip3 install soundfile`
 
 
 Install HuggingFace **Transformers** and **Datasets**.
