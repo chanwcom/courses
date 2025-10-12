@@ -15,7 +15,6 @@ Install Pytorch.
 https://pytorch.org/get-started/locally/
 Check the CUDA version
 \
-`nvcc --version`
 
 Select the command at the bottom of the table, after seleting the right "Compute Platform"
 For example, if the CUDA version is 11.8, then run the following command:
