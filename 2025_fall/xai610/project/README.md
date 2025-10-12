@@ -75,8 +75,21 @@ https://drive.google.com/file/d/1j2z8xb4V5zTb6ChJafZZp8Gtt61_ma_1/view?usp=drive
 
 As before, you should decompress tar.gz files only once. We will use 10 sharded *.tar file for training and eval.
 
-# 4. Run the scripts in the "run" directory
+---
 
-If GPU0 is available, then set the following configuration variables:
-\
-`export NCCL_P2P_DISABLE=1; export NCCL_IB_DISABLE=1; export CUDA_VISIBLE_DEVICES=0`
+# 3. Running the Scripts in the `run` Directory
+
+If **GPU 0** is available, set the following environment variables before running the scripts:
+
+    export NCCL_P2P_DISABLE=1
+    export NCCL_IB_DISABLE=1
+    export CUDA_VISIBLE_DEVICES=0
+
+> 💡 **Note:**  
+> If a different GPU is available (for example, GPU 1 or GPU 2),  
+> replace the value in `CUDA_VISIBLE_DEVICES` with the corresponding GPU ID.  
+> For example:
+>
+>     export CUDA_VISIBLE_DEVICES=1
+>
+> This ensures that your training script runs on the correct GPU device.
