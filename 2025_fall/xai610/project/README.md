@@ -59,7 +59,7 @@ Install evaluation utilities for speech recognition:
 
 ---
 
-## 2. Libri-Light 1-Hour Fine-Tuning Set
+## 2. Libri-Light 1-Hour Fine-Tuning Set and Test-Clean and Test-Other Sets
 
 We use the **1-hour Libri-Light fine-tuning set** for our experiments. This dataset is particularly suitable for low-resource ASR fine-tuning.
 
