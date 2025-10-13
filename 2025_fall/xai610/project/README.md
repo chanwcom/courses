@@ -57,23 +57,25 @@ Install evaluation utilities for speech recognition:
 - [Hugging Face Datasets Installation](https://huggingface.co/docs/datasets/installation)
 
 
+---
 
-# 2. STOP dataset
+## 2. Libri-Light 1-Hour Fine-Tuning Set
 
-We used the music portion of the STOP train set.
-However, we removed 00011525.wav, since the transcript of it seems to contain an error: "play song TITLE_MEDIA on spotify"
-You may download the compressed sharded WebDataset from the following directory:
+We use the **1-hour Libri-Light fine-tuning set** for our experiments. This dataset is particularly suitable for low-resource ASR fine-tuning.
 
-https://drive.google.com/file/d/1myqysY_FkaynOfkORBA5xyw4FRJ_OxuW/view?usp=drive_link
+**Download link:**  
+[Libri-Light 1-hour fine-tuning set](https://drive.google.com/drive/folders/1izfwIUAreziLLpLUCAl7_zh10LzxxIKg?usp=drive_link)
 
-So the total number of utterances is reduced from 11563 to 11562.
+**Important Notes:**
 
-Please note that you should decompress tar.gz files only once. We will use 10 sharded *.tar file for training and eval.
+- Decompress each `.tar.gz` file **only once**.
+- For training and evaluation, we use **5 sharded `.tar` files**.
+- For testing, we use the **LibriSpeech `test-clean` and `test-other`** sets.
 
-For the test set, I randomly chose 300 utterances from `test_0/music_test`. You may download the compressed sharded WebDataset.
-https://drive.google.com/file/d/1j2z8xb4V5zTb6ChJafZZp8Gtt61_ma_1/view?usp=drive_link
+This dataset is a subset of the **Libri-Light** corpus, introduced by Kahn et al., 2020, designed for **self-supervised and semi-supervised speech representation learning**. The 1-hour fine-tuning set allows quick adaptation experiments in low-resource settings.
 
-As before, you should decompress tar.gz files only once. We will use 10 sharded *.tar file for training and eval.
+**Reference:**  
+Kahn, J., et al. (2020). *Libri-Light: A Benchmark for ASR with Limited or No Supervision*. [arXiv:2009.08568](https://arxiv.org/abs/2009.08568)
 
 ---
 
