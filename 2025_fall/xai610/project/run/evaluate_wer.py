@@ -1,14 +1,15 @@
+import argparse
 from jiwer import wer
 
-# Suppose your data is in a text file like "results.txt" with lines:
-# REF: ...
-# HYP: ...
-file_path = "ttt"
+# Parse command line arguments
+parser = argparse.ArgumentParser(description="Compute WER from a REF/HYP text file")
+parser.add_argument("file_path", type=str, help="Path to the REF/HYP results file")
+args = parser.parse_args()
 
 refs = []
 hyps = []
 
-with open(file_path, "r", encoding="utf-8") as f:
+with open(args.file_path, "r", encoding="utf-8") as f:
     lines = [line.strip() for line in f if line.strip()]  # remove empty lines
 
 for i in range(0, len(lines), 2):  # every two lines: REF and HYP

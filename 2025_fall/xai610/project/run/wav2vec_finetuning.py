@@ -19,11 +19,12 @@ import numpy as np
 # Custom imports
 import sample_util
 
-db_top_dir = "/mnt/data/database"
+# TODO: Correct paths depending on your environment
+db_top_dir = ""
 train_top_dir = os.path.join(db_top_dir, "libri_light/1h")
-test_top_dir = os.path.join(
-    db_top_dir, "libri_speech_webdataset_new_oct_2025/test-clean")
+test_top_dir = os.path.join(db_top_dir, "test-clean")
 processor = AutoProcessor.from_pretrained("facebook/wav2vec2-base")
+# End of ToDO
 
 train_dataset = sample_util.make_dataset(train_top_dir)
 test_dataset = sample_util.make_dataset(test_top_dir)
@@ -195,16 +196,18 @@ training_args = TrainingArguments(
     push_to_hub=False,
 )
 
+# TODO
 # Create the Trainer instance to handle training and evaluation.
 # This ties together the model, datasets, tokenizer, data collator, and metrics.
 trainer = Trainer(
-    model=model,
-    args=training_args,
-    train_dataset=train_dataset,
-    eval_dataset=test_dataset,
-    tokenizer=processor,
-    data_collator=data_collator,
-    compute_metrics=compute_metrics,
+    model=,
+    args=,
+    train_dataset=,
+    eval_dataset=,
+    tokenizer=,
+    data_collator=,
+    compute_metrics=,
 )
+# End of TODO
 
 trainer.train()

@@ -34,19 +34,9 @@ def preprocess_sample(sample: Dict) -> Dict:
             - 'input_values': processed audio feature tensor.
             - 'labels': list of token IDs corresponding to the transcript.
     """
-    waveform, sample_rate = torchaudio.load(io.BytesIO(sample["audio"]))
-    input_values = processor.feature_extractor(
-        waveform[0], sampling_rate=sample_rate
-    ).input_values[0]
+    # TODO Implement this function
 
-    # Processes text to handle both bytes and a string.
-    if isinstance(sample["text"], bytes):
-        text = sample["text"].decode("utf-8").strip()
-    else:
-        text = sample["text"].strip()
-
-    labels = processor.tokenizer(text).input_ids
-
+    # End of TODO
     return {"input_values": input_values, "labels": labels}
 
 
