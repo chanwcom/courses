@@ -1,8 +1,9 @@
 import os
 import torch
 import logging
+import json
 from datasets import load_dataset
-from tokenizers import ByteLevelBPETokenizer
+# Using PreTrainedTokenizerFast to load custom files
 from transformers import (
     LlamaConfig,
     LlamaForCausalLM,
@@ -14,127 +15,149 @@ from transformers import (
 
 # Set logging level to INFO
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
-# --- 1. CONFIGURATION CONSTANTS ---
-# Define constants for file paths and hyperparameters according to Google Style (UPPER_SNAKE_CASE)
-_TRAIN_FILE = "librispeech-lm-norm.txt"  
+# --- 1. CONFIGURATION CONSTANTS (UPPER_SNAKE_CASE) ---
+_TRAIN_FILE = "librispeech-lm-norm.txt"
 _MODEL_NAME = "librispeech_lm_tinyllama_custom"
-_VOCAB_SIZE = 30000       # Vocabulary size for the BPE tokenizer
-_MAX_SEQUENCE_LENGTH = 128 # Maximum length of input sequences
+
+# Custom vocabulary and its size (32 tokens)
+_CUSTOM_VOCAB = {
+    '<pad>': 0, '<s>': 1, '</s>': 2, '<unk>': 3, '|': 4, 'E': 5,
+    'T': 6, 'A': 7, 'O': 8, 'N': 9, 'I': 10, 'H': 11, 'S': 12,
+    'R': 13, 'D': 14, 'L': 15, 'U': 16, 'M': 17, 'W': 18, 'C': 19,
+    'F': 20, 'G': 21, 'Y': 22, 'P': 23, 'B': 24, 'V': 25, 'K': 26,
+    "'": 27, 'X': 28, 'J': 29, 'Q': 30, 'Z': 31
+}
+_VOCAB_SIZE = len(_CUSTOM_VOCAB) # 32
+
+_MAX_SEQUENCE_LENGTH = 128
 _NUM_EPOCHS = 3
-_PER_DEVICE_BATCH_SIZE = 8 # Batch size per GPU/CPU
-_GRADIENT_ACCUMULATION_STEPS = 2 # Steps to accumulate gradients over
+_PER_DEVICE_BATCH_SIZE = 8
+_GRADIENT_ACCUMULATION_STEPS = 2
 
 # --- 2. FILE AND ENVIRONMENT CHECK ---
 if not os.path.exists(_TRAIN_FILE):
-    logger.error(f"Error: Training file '{_TRAIN_FILE}' not found.")
-    logger.error("Please ensure the file is downloaded and unzipped in the current directory.")
-    exit()
+    LOGGER.error(f"Error: Training file '{_TRAIN_FILE}' not found.")
+    LOGGER.error("Ensure the file is downloaded in the current directory.")
+    # In a real script, you'd exit here: exit()
 
-# --- 3. TOKENIZER TRAINING AND SAVING ---
-# We train a new Byte-level BPE tokenizer on the target corpus.
-logger.info("Step 1: Starting tokenizer training...")
-custom_tokenizer = ByteLevelBPETokenizer()
-
-# Train the tokenizer, defining special tokens consistent with the Llama architecture.
-custom_tokenizer.train(
-    files=[_TRAIN_FILE],
-    vocab_size=_VOCAB_SIZE,
-    min_frequency=2,
-    # Standard special tokens for Llama-like models
-    special_tokens=["<s>", "</s>", "<unk>", "<pad>"], 
-)
-
-# Save the tokenizer model to a dedicated directory
+# --- 3. CUSTOM TOKENIZER CREATION (REPLACES TRAINING) ---
+LOGGER.info("Step 1: Creating custom tokenizer files...")
 os.makedirs(_MODEL_NAME, exist_ok=True)
-custom_tokenizer.save_model(_MODEL_NAME)
-logger.info(f"Tokenizer trained and saved to '{_MODEL_NAME}' directory.")
 
+# 1. Save the vocab dictionary as vocab.json
+with open(os.path.join(_MODEL_NAME, "vocab.json"), "w") as f:
+    json.dump(_CUSTOM_VOCAB, f)
+
+# 2. Create an empty merges.txt (required for BPE-like tokenizers)
+with open(os.path.join(_MODEL_NAME, "merges.txt"), "w") as f:
+    pass # File is empty
+
+LOGGER.info(
+    f"Custom tokenizer files created with size {_VOCAB_SIZE} in "
+    f"'{_MODEL_NAME}'."
+)
 
 # --- 4. DATA LOADING AND PREPROCESSING ---
 
-# Load the text dataset using the Hugging Face 'text' loader
-logger.info("Step 2: Loading and tokenizing dataset...")
+# Load the text dataset
+LOGGER.info("Step 2: Loading and tokenizing dataset...")
 dataset = load_dataset("text", data_files={"train": _TRAIN_FILE})
 
-# Load the saved tokenizer into the Hugging Face PreTrainedTokenizerFast format
+# Define the custom tokenization function to split by character
+def _simple_char_tokenize(self, text):
+    """Splits text into characters, mapping to IDs."""
+    # Convert to uppercase for case-insensitive matching (common for ASR LMs)
+    return [
+        t if t in self.vocab else self.unk_token
+        for t in text.upper()
+    ]
+
+# Load the custom tokenizer using vocab/merges files
 tokenizer = PreTrainedTokenizerFast(
-    tokenizer_file=os.path.join(_MODEL_NAME, "tokenizer.json"),
+    vocab_file=os.path.join(_MODEL_NAME, "vocab.json"),
+    merges_file=os.path.join(_MODEL_NAME, "merges.txt"),
+    # Set special tokens based on the custom vocab keys
     unk_token="<unk>",
     bos_token="<s>",
     eos_token="</s>",
-    pad_token="<pad>" 
+    pad_token="<pad>",
+    # Ensure added tokens are registered
+    added_tokens=[
+        t for t in _CUSTOM_VOCAB.keys()
+        if t not in ["<pad>", "<s>", "</s>", "<unk>"]
+    ]
 )
+
+# Patch the internal tokenization method for character-level splitting
+tokenizer._tokenize = _simple_char_tokenize.__get__(tokenizer)
 tokenizer.model_max_length = _MAX_SEQUENCE_LENGTH
 
-
 def tokenize_function(examples):
-    """Tokenizes input text, ensuring truncation based on the model's max length."""
-    return tokenizer(examples["text"], truncation=True) 
+    """Tokenizes input text, ensuring truncation."""
+    return tokenizer(examples["text"], truncation=True)
 
-# Apply tokenization using multiple processes for efficiency
+# Apply tokenization
 tokenized_dataset = dataset.map(
-    tokenize_function, 
-    batched=True, 
+    tokenize_function,
+    batched=True,
     num_proc=os.cpu_count() or 1,
     remove_columns=["text"],
 )
 
-
 def group_texts(examples):
-    """
-    Groups tokenized texts into contiguous blocks of MAX_SEQUENCE_LENGTH.
-    This is essential for Causal Language Modeling training.
-    """
-    # Concatenate all texts into one list
+    """Groups tokenized texts into contiguous blocks of max length."""
     concatenated_examples = {k: sum(examples[k], []) for k in examples.keys()}
-    total_length = len(concatenated_examples[list(examples.keys())[0]])
-    
-    # Drop the last part if it's shorter than the max length
-    total_length = (total_length // _MAX_SEQUENCE_LENGTH) * _MAX_SEQUENCE_LENGTH
-    
-    # Split into chunks of MAX_SEQUENCE_LENGTH
+    total_length = len(
+        concatenated_examples[list(examples.keys())[0]]
+    )
+
+    total_length = (total_length // _MAX_SEQUENCE_LENGTH) * \
+                   _MAX_SEQUENCE_LENGTH
+
     result = {
-        k: [t[i : i + _MAX_SEQUENCE_LENGTH] for i in range(0, total_length, _MAX_SEQUENCE_LENGTH)]
+        k: [
+            t[i : i + _MAX_SEQUENCE_LENGTH]
+            for i in range(0, total_length, _MAX_SEQUENCE_LENGTH)
+        ]
         for k, t in concatenated_examples.items()
     }
-    # For Causal LM, labels are the input tokens shifted (handled by the collator, 
-    # but we set them here for consistency)
     result["labels"] = result["input_ids"].copy()
     return result
 
 # Apply the chunking/grouping function
 lm_dataset = tokenized_dataset.map(
-    group_texts, 
-    batched=True, 
+    group_texts,
+    batched=True,
     num_proc=os.cpu_count() or 1,
 )
 train_dataset = lm_dataset["train"]
-logger.info(f"Dataset preparation complete. Total training sequences: {len(train_dataset)}")
-
-
-# --- 5. MODEL CONFIGURATION AND INITIALIZATION ---
-# Define a small LlamaConfig to leverage modern improvements (RoPE, RMSNorm, SwiGLU) 
-# while keeping the parameter count low for scratch training.
-logger.info("Step 3: Initializing Llama model architecture...")
-custom_config = LlamaConfig(
-    vocab_size=_VOCAB_SIZE,
-    hidden_size=512,        # Dimensionality of the embeddings and transformer layers
-    intermediate_size=512 * 4, # Dimension of the MLP projection layer (4x hidden_size is standard)
-    num_hidden_layers=6,    # Number of transformer layers (6 layers is a small, efficient choice)
-    num_attention_heads=8,  # Number of attention heads
-    max_position_embeddings=_MAX_SEQUENCE_LENGTH,
-    rms_norm_eps=1e-6,      # Epsilon for the RMSNorm layer (Llama standard)
-    pad_token_id=tokenizer.pad_token_id,
-    bos_token_id=tokenizer.bos_token_id,
-    eos_token_id=tokenizer.eos_token_id,
+LOGGER.info(
+    f"Dataset prep complete. Total training sequences: {len(train_dataset)}"
 )
 
-# Initialize the LlamaForCausalLM model from the custom Config (Full Scratch initialization)
-model = LlamaForCausalLM(config=custom_config)
-logger.info(f"Model initialized. Total parameters: {model.num_parameters()}")
+# --- 5. MODEL CONFIGURATION AND INITIALIZATION ---
+LOGGER.info("Step 3: Initializing Llama model architecture...")
 
+# Use the custom vocab size and IDs
+custom_config = LlamaConfig(
+    vocab_size=_VOCAB_SIZE, # 32
+    hidden_size=512,
+    intermediate_size=512 * 4,
+    num_hidden_layers=6,
+    num_attention_heads=8,
+    max_position_embeddings=_MAX_SEQUENCE_LENGTH,
+    rms_norm_eps=1e-6,
+    pad_token_id=_CUSTOM_VOCAB['<pad>'],
+    bos_token_id=_CUSTOM_VOCAB['<s>'],
+    eos_token_id=_CUSTOM_VOCAB['</s>'],
+)
+
+model = LlamaForCausalLM(config=custom_config)
+LOGGER.info(
+    f"Model initialized. Total parameters: {model.num_parameters()}"
+)
 
 # --- 6. TRAINING ARGUMENTS AND TRAINER SETUP ---
 training_args = TrainingArguments(
@@ -147,17 +170,14 @@ training_args = TrainingArguments(
     save_total_limit=2,
     logging_steps=100,
     learning_rate=5e-5,
-    # Enable mixed-precision training if CUDA is available for speed
-    fp16=torch.cuda.is_available(), 
+    fp16=torch.cuda.is_available(),
 )
 
-# Data Collator: Prepares batches for Causal Language Modeling (mlm=False)
 data_collator = DataCollatorForLanguageModeling(
-    tokenizer=tokenizer, 
+    tokenizer=tokenizer,
     mlm=False
 )
 
-# Initialize the Hugging Face Trainer
 trainer = Trainer(
     model=model,
     args=training_args,
@@ -166,10 +186,10 @@ trainer = Trainer(
 )
 
 # --- 7. START TRAINING ---
-logger.info("Step 4: Starting model training...")
+LOGGER.info("Step 4: Starting model training...")
 trainer.train()
 
 # --- 8. SAVE FINAL MODEL AND TOKENIZER ---
 trainer.save_model(f"./{_MODEL_NAME}_final")
 tokenizer.save_pretrained(f"./{_MODEL_NAME}_final")
-logger.info("Training complete. Final model and tokenizer saved.")
+LOGGER.info("Training complete. Final model and tokenizer saved.")
