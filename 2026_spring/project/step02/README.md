@@ -14,6 +14,6 @@ Instructions:
 
 Note that the log_label_prob is log ((\hat{y}_t))_{c_l}).
 
-### 2. Implement the **calculate_alpha_betacalculate_alpha_beta** method so that the unit test passes.
+### 2. Implement the **calculate_alpha_beta** method so that the unit test passes.
 
 Avoid using for-loops if possible. However, in calculating the forward-backward variables, we cannot completely remove for-loops.
