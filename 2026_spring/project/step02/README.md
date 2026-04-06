@@ -2,7 +2,7 @@
 
 ## Please use Python 3 and PyTorch version > 2.4.
 
-### Due Date June 3rd, 2025. Please send your code to chanwcom@korea.ac.kr
+### Due Date May 11th, 2026. Please send your code to chanwcom@korea.ac.kr
 
 To check whether the unit test passes, please run the following command:
 
