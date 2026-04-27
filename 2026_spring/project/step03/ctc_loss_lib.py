@@ -95,6 +95,7 @@ def label_trans_allowance_table(labels, labels_len):
             The shape is (batch_size, max_label_seq_len, max_seq_len)
     """
 
+    # TODO Implement your code!!!
     return trans_table
 
 
@@ -134,7 +135,6 @@ def _calculate_unnormalized_log_seq_prob(log_alpha, accum_log_seq_prob_sum,
 
     # max(alpha_{T-1,L-1}, alpha_{T-1,L})
     #
-    # TODO(chanwcom)
     # There is an issue with the following statement.
     # It should be  addition rather than max.
     # alpha_{T-1,L-2}, alpha_{T-1,L-1}
