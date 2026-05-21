@@ -14,6 +14,7 @@ import numpy as np
 import torch
 
 LOG_0 = torch.tensor(np.log(1e-307)).type(torch.float32)
+#LOG_0 = torch.tensor(np.log(np.finfo(np.float64).tiny).astype(np.float32))
 
 def sequence_mask(lengths, maxlen=None, dtype=torch.bool):
     """Applies sequence masking.
