@@ -26,8 +26,8 @@ import torch
 import numpy as np
 
 # Custom imports
-import ctc_loss_lib_answer
-ctc_loss_lib = ctc_loss_lib_answer
+import ctc_loss_lib
+ctc_loss_lib = ctc_loss_lib
 
 # Constant for log(0), represented as negative infinity
 LOG_0 = ctc_loss_lib.LOG_0
