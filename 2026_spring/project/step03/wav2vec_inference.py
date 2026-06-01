@@ -14,13 +14,9 @@ from transformers import pipeline
 import sample_util_solution
 sample_util = sample_util_solution
 
-db_top_dir = "/mnt/data/database/libri_speech_webdataset_new_oct_2025"
-
-test_clean_top_dir = os.path.join(db_top_dir, "test-clean")
-test_other_top_dir = os.path.join(db_top_dir, "test-clean")
-
-test_clean_dataset = sample_util.make_dataset(test_clean_top_dir, False)
-test_other_dataset = sample_util.make_dataset(test_other_top_dir, False)
+db_top_dir = # TODO
+test_top_dir = os.path.join(#TODO
+test_dataset = sample_util.make_dataset(test_top_dir, False)
 
 transcriber = pipeline(
     "automatic-speech-recognition",
@@ -37,7 +33,4 @@ def write_results(dataset, transcriber, output_file):
             f.write(f"HYP: {hyp}\n\n")  # double newline for readability
 
 # Write test_clean_dataset
-write_results(test_clean_dataset, transcriber, "test_clean_result.txt")
-
-# Write test_other_dataset
-write_results(test_other_dataset, transcriber, "test_other_result.txt")
+write_results(test_dataset, transcriber, "test_result.txt")
