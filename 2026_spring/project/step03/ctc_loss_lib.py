@@ -13,6 +13,8 @@ import enum
 import numpy as np
 import torch
 
+torch._dynamo.config.capture_scalar_outputs = True
+
 LOG_0 = torch.tensor(np.log(1e-307)).type(torch.float32)
 #LOG_0 = torch.tensor(np.log(np.finfo(np.float64).tiny).astype(np.float32))
 
@@ -190,15 +192,15 @@ def calculate_log_label_prob(labels, softmax_output):
 
 
 def _calculate_unnormalized_log_seq_prob(log_alpha, accum_log_seq_prob_sum,
-                                         logit_len, label_len):
+                                         logit_len, target_len):
     # In alpha calculation, the log probabilty is normalized to prevent
     # over-flowing and under-flowing. This effect is compensated here.
     # log_p_ctc = log
     batch_size = log_alpha.shape[0]
     batch_index = torch.arange(batch_size, dtype=torch.int32)
 
-    final_log_alpha0 = log_alpha[batch_index, logit_len - 1, label_len - 1]
-    final_log_alpha1 = log_alpha[batch_index, logit_len - 1, label_len - 2]
+    final_log_alpha0 = log_alpha[batch_index, logit_len - 1, target_len - 1]
+    final_log_alpha1 = log_alpha[batch_index, logit_len - 1, target_len - 2]
 
     # max(alpha_{T-1,L-1}, alpha_{T-1,L})
     #
@@ -215,116 +217,126 @@ def _calculate_unnormalized_log_seq_prob(log_alpha, accum_log_seq_prob_sum,
     return final_log_alpha + final_accum
 
 
-def calculate_alpha_beta(label_trans_table, log_label_prob, label_len,
-                         logit_len):
-    """Calculates the alpha best and beta best variables.
+def calculate_alpha_beta(label_trans_table, log_target_probs, target_lens,
+                         logit_lens):
+    """Calculates the alpha and beta variables required for CTC computation.
 
-    This calculates the alpha and beta variables required for CTC computation.
     Note that the definition of beta variable is somewhat different from the
     original CTC paper. This equation will be explained in my future paper.
-    TODO(chanwcom) Adds the paper link.
+    TODO(chanwcom): Adds the paper link.
 
     Args:
-        label_trans_table: A tensor containing the transition tables.
-            The shape is (batch_size, max_label_seq_len, max_label_seq_len).
-        log_label_prob: A tensor of posterior probabilities of each label.
-            The shape is (batch_size, max_logit_len, max_label_len).
-            Mathematically, it is given by the following equation:
-                log (p_{[m]}(y_l | x)).
-        label_len: A tensor containing the label lengths.
-            The shape is (batch_size).
-        logit_len: A tensor containing the logit lengths.
-            The shape is (batch_size).
+        label_trans_table: A tensor containing the transition tables. The shape
+          is (batch_size, max_target_len, max_target_len).
+        log_target_probs: A tensor of log posterior probabilities of each
+          target token. The shape is (batch_size, max_logit_len,
+          max_target_len). Mathematically, it is given by: log (p_{[m]}(y_l |
+          x)).
+        target_lens: A tensor containing the target lengths. The shape is
+          (batch_size).
+        logit_lens: A tensor containing the logit lengths. The shape is
+          (batch_size).
+
+    Returns:
+        log_alpha: The calculated forward variable tensor.
+        log_beta: The calculated backward variable tensor.
+        log_seq_prob_final: The final unnormalized sequence log probabilities.
     """
-    batch_size = log_label_prob.shape[0]
-    max_label_len = torch.max(label_len)
-    max_logit_len = torch.max(logit_len)
+    batch_size = log_target_probs.shape[0]
+    device = log_target_probs.device
+    dtype = log_target_probs.dtype
+    max_target_len = torch.max(target_lens)
+    max_logit_len = torch.max(logit_lens)
 
-    # Initalization of log_alpha and log_beta
-    log_alpha = torch.full((batch_size, max_logit_len, max_label_len),
-                           fill_value=LOG_0)
-    log_beta = torch.full((batch_size, max_logit_len, max_label_len),
-                          fill_value=LOG_0)
+    # Initialize log_alpha and log_beta arrays.
+    log_alpha = torch.full((batch_size, max_logit_len, max_target_len),
+                           fill_value=LOG_0,
+                           device=device,
+                           dtype=dtype)
+    log_beta = torch.full((batch_size, max_logit_len, max_target_len),
+                          fill_value=LOG_0,
+                          device=device,
+                          dtype=dtype)
 
-    # Mask is used for calculating log_beta for proper backward initialization.
-    mask = sequence_mask(logit_len, maxlen=max_logit_len)
+    # Initialize alpha variable at the first step without one_hot ops.
+    prev_log_alpha = torch.full((batch_size, max_target_len),
+                                fill_value=LOG_0,
+                                device=device,
+                                dtype=dtype)
+    prev_log_alpha[:, 0] = 0.0
 
-    prev_log_alpha = ((1.0 - (torch.nn.functional.one_hot(
-        torch.zeros(size=(batch_size, ), dtype=torch.int64), max_label_len))) *
-                      LOG_0)
     accum_log_alpha_max = torch.zeros((batch_size, max_logit_len),
-                                      dtype=torch.float32)
-    prev_log_alpha_max = torch.zeros((batch_size), dtype=torch.float32)
+                                      device=device,
+                                      dtype=dtype)
+    prev_log_alpha_max = torch.zeros((batch_size,), device=device, dtype=dtype)
 
-    for t in range(max_logit_len):
-        # Calculates log_alpha recursively from the previous time step.
+    # Forward Pass: Calculates log_alpha recursively.
+    total_logit_timesteps = log_target_probs.shape[1]
+    for t in range(total_logit_timesteps):
+        # Trans table broadcast: [B, L, 1] + [B, L, L] -> [B, L, L]
         log_alpha[:, t, :] = (
             torch.logsumexp(
-                torch.add(torch.unsqueeze(prev_log_alpha, axis=2),
-                          label_trans_table),
-                dim=1) + log_label_prob[:, t, :]) # yapf: disable
+                prev_log_alpha.unsqueeze(2) + label_trans_table, dim=1) +
+            log_target_probs[:, t, :])
 
-        # Normalizes the log sequence prob.
-        log_alpha_max = torch.max(log_alpha[:, t, :], axis=1,
-                                  keepdims=True).values
+        # Normalize the log sequence prob to prevent underflow.
+        log_alpha_max = torch.max(
+            log_alpha[:, t, :], dim=1, keepdim=True).values
         log_alpha[:, t, :] -= log_alpha_max
 
-        # Accumulates the maximum.
-        accum_log_alpha_max[:, t] = (prev_log_alpha_max +
-                                     torch.squeeze(log_alpha_max, axis=-1))
+        # Accumulate the maximum scaling factors.
+        accum_log_alpha_max[:, t] = (
+            prev_log_alpha_max + log_alpha_max.squeeze(-1))
         prev_log_alpha_max = accum_log_alpha_max[:, t]
         prev_log_alpha = log_alpha[:, t, :]
 
-    initial_log_beta = (
-        (1.0 - torch.nn.functional.one_hot(label_len - 1, max_label_len)) *
-        LOG_0)
+    # Initialize beta variable using target length info.
+    initial_log_beta = torch.full((batch_size, max_target_len),
+                                  fill_value=LOG_0,
+                                  device=device,
+                                  dtype=dtype)
+    batch_indices = torch.arange(batch_size, device=device, dtype=torch.long)
+    target_indices = (target_lens - 1).to(torch.long)
+    initial_log_beta[(batch_indices, target_indices)] = 0.0
     prev_log_beta = initial_log_beta
 
-    time_mask = torch.unsqueeze(
-        sequence_mask(logit_len, maxlen=max_logit_len, dtype=torch.float32),
-        axis=2) # yapf: disable
+    # Prepare time mask for padding frames. Shape: [B, T, 1]
+    time_mask = sequence_mask(
+        logit_lens, maxlen=max_logit_len, dtype=dtype).unsqueeze(2)
 
-    next_log_label_prob = torch.zeros(size=(batch_size, max_label_len))
-    for t in range(max_logit_len - 1, -1, -1):
-        # Calculates log_beta recursively from the next time step.
-        log_beta[:, t, :] = (
-            torch.logsumexp(
-                torch.add(torch.unsqueeze(
-                    prev_log_beta + next_log_label_prob, 1),
-                    label_trans_table),
-                dim=2)) # yapf: disable
+    # Backward Pass: Calculates log_beta recursively.
+    next_log_target_probs = torch.zeros((batch_size, max_target_len),
+                                        device=device,
+                                        dtype=dtype)
+    for t in range(total_logit_timesteps - 1, -1, -1):
+        log_beta[:, t, :] = torch.logsumexp(
+            (prev_log_beta + next_log_target_probs).unsqueeze(1) +
+            label_trans_table,
+            dim=2)
 
-        next_log_label_prob = log_label_prob[:, t, :]
+        next_log_target_probs = log_target_probs[:, t, :]
 
-        # Normalizes the log beta prob. using the maximum value at time t.
-        log_beta_max = torch.max(log_beta[:, t, :], axis=1,
-                                 keepdims=True).values
+        # Normalize the log beta prob.
+        log_beta_max = torch.max(
+            log_beta[:, t, :], dim=1, keepdim=True).values
         log_beta[:, t, :] -= log_beta_max
 
-        # Correctly initializes log_beta from the length info.
-        #
-        # If mask is zero, then makes the current log_beta zero
-        # first multiplying with the mask. After that, re-initializes the
-        # log_beta to be "initial_log_beta".
-
-        log_beta[:, t, :] = torch.multiply(log_beta[:, t, :],
-                                           time_mask[:, t, :]) # yapf: disable
-        log_beta[:, t, :] += torch.multiply(initial_log_beta,
-                                            (1.0 - time_mask[:, t, :]))
-
+        # Reset log_beta for padded frames and re-initialize boundary.
+        current_mask = time_mask[:, t, :]
+        log_beta[:, t, :] = ((log_beta[:, t, :] * current_mask) +
+                             (initial_log_beta * (1.0 - current_mask)))
         prev_log_beta = log_beta[:, t, :]
 
-    log_alpha += torch.multiply(LOG_0, (1.0 - time_mask))
-    log_beta += torch.multiply(LOG_0, (1.0 - time_mask))
+    # Final Sequence Masking: Vectorized masking outside the loop.
+    label_mask = sequence_mask(
+        target_lens, maxlen=max_target_len, dtype=dtype).unsqueeze(1)
 
-    label_mask = torch.unsqueeze(sequence_mask(label_len,
-                                               maxlen=max_label_len,
-                                               dtype=torch.float32),
-                                 axis=1)
-    log_alpha += torch.multiply(LOG_0, (1.0 - label_mask))
-    log_beta += torch.multiply(LOG_0, (1.0 - label_mask))
+    final_valid_mask = time_mask * label_mask  # Shape: [B, T, L]
+    log_alpha = torch.where(final_valid_mask == 1.0, log_alpha, LOG_0)
+    log_beta = torch.where(final_valid_mask == 1.0, log_beta, LOG_0)
 
+    # Calculate final unnormalized sequence probability.
     log_seq_prob_final = _calculate_unnormalized_log_seq_prob(
-        log_alpha, accum_log_alpha_max, logit_len, label_len)
+        log_alpha, accum_log_alpha_max, logit_lens, target_lens)
 
     return log_alpha, log_beta, log_seq_prob_final
