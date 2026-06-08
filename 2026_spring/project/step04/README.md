@@ -18,6 +18,7 @@ wget [http://www.openslr.org/resources/12/train-clean-100.tar.gz](http://www.ope
 
 # Extract the dataset
 tar -xzvf train-clean-100.tar.gz -C ./data
+```
 
 
 ### Step 2: Extract Raw Text (libri_raw.txt)
