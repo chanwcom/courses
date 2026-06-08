@@ -34,7 +34,7 @@ chmod +x extract_libri_text.sh
 ./extract_libri_text.sh ./data/LibriSpeech ./src/data/tokenizers/resources/libri_raw.txt
 ```
 
-Step 3: Train the Tokenizers
+### Step 3: Train the Tokenizers
 You can train models using either Unigram or BPE algorithms. The training script will automatically iterate through the predefined vocabulary sizes: 32, 128, 512, 2048, and 8192.
 
 Before running, open run.sh and ensure the OUTPUT_DIR path exists or is set to your preferred directory.
@@ -57,7 +57,7 @@ Then execute the script:
 ./run.sh
 ```
 
-Step 4: Verify Output Artifacts
+### Step 4: Verify Output Artifacts
 Once run.sh finishes running successfully, verify that the tokenizer models and vocabularies have been properly generated in your specified OUTPUT_DIR.
 
 Navigate to your output directory and list the files:
@@ -74,7 +74,7 @@ You should see a pair of .model and .vocab files for each vocabulary size:
 - librispeech_unigram_2048.model & librispeech_unigram_2048.vocab
 - librispeech_unigram_8192.model & librispeech_unigram_8192.vocab
 
-Step 5: Test and Load Tokenizer in Python
+### Step 5: Test and Load Tokenizer in Python
 To verify that your newly trained models are working correctly within your code, load them using the sentencepiece library and tokenize a sample sentence.
 
 Create a simple script or open an interactive Python shell:
