@@ -10,13 +10,14 @@ This project provides an automated pipeline to extract text from the LibriSpeech
 
  - LibriSpeech ASR dataset can be found at:
 ```
-https://www.openslr.org/11
+https://www.openslr.org/12
 ```
  - LibriSpeech LM Corpus dataset can be found at:
 ```
-https://www.openslr.org/12
-```
+https://www.openslr.org/11
 
+```
+We will use librispeech-lm-norm.txt.gz .
  - First, download and extract the LibriSpeech ASR (audio/text) data (e.g., `train-clean-100`) to your local machine.
 
 ```bash
