@@ -40,7 +40,7 @@ Make sure the output path matches the configuration in your scripts:
 chmod +x extract_libri_text.sh
 
 # Run the extraction script
-./extract_libri_text.sh ./data/LibriSpeech ./src/data/tokenizers/resources/libri_raw.txt
+./extract_libri_text.sh ./data/LibriSpeech ./src/data/tokenizers/resources/librispeech_asr_train_test.txt
 ```
 
  - Download the Normalized Text Corpus
@@ -60,7 +60,15 @@ wget http://www.openslr.org/resources/11/librispeech-lm-norm.txt.gz
 gunzip librispeech-lm-norm.txt.gz
 ``````
 
-- Concatenate `libri_raw.txt` and `librispeech-lm-norm.txt.gz` to make the final text corpus.
+- Concatenate `librispeech_asr_train_test.txt` and `librispeech-lm-norm.txt.gz` to make the final text corpus.
+
+- TIP: To simplify this step, I uploaded the final text corpus including both libri_train
+You may download it from the following link:
+```
+  https://drive.google.com/file/d/1X22hM6qZUi7dWhLZhQ42LAVJrH-7X_JM/view?usp=sharing
+```
+Please download and decompress it. Then you will get:
+ **librispeech_asr_train_text_and_librispeech_lm_norm.txt.gz**
 
 ### Step 2: Train the Tokenizers
 You can train models using either Unigram or BPE algorithms. The training script will automatically iterate through the predefined vocabulary sizes: 32, 128, 512, 2048, and 8192.
