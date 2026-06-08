@@ -120,7 +120,15 @@ print("Tokens:", sp.encode_as_pieces(text))
 print("Token IDs:", sp.encode_as_ids(text))
 ```
 
-📂 Directory Structure
+
+### Step 5. Fine Tuning the model using new tokenizers.
+
+- Obtain WERs for Unigram 64 and 128 vocabs and BPE 64  and 128 vocabs.
+
+
+### Appendix.
+
+# Directory Structure
 The pipeline consists of the following components:
 
 - extract_libri_text.sh: A shell script that recursively searches for LibriSpeech transcription files (*.trans.txt), removes the utterance IDs from each line, and aggregates the raw text.
