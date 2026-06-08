@@ -4,10 +4,20 @@ This project provides an automated pipeline to extract text from the LibriSpeech
 
 ---
 
-## 🚀 Setup & Execution Guide
+## Setup & Execution Guide
 
-### Step 1: Download the LibriSpeech Dataset
-First, download and extract the LibriSpeech audio/text data (e.g., `train-clean-100`) to your local machine.
+### Step 1: Download the Full LibriSpeech Dataset and the Normalized LibriSpeech Text Corpus
+
+ - LibriSpeech ASR dataset can be found at:
+```
+https://www.openslr.org/11
+```
+ - LibriSpeech LM Corpus dataset can be found at:
+```
+https://www.openslr.org/12
+```
+
+ - First, download and extract the LibriSpeech ASR (audio/text) data (e.g., `train-clean-100`) to your local machine.
 
 ```bash
 # Create a data directory
@@ -20,8 +30,6 @@ wget [http://www.openslr.org/resources/12/train-clean-100.tar.gz](http://www.ope
 tar -xzvf train-clean-100.tar.gz -C ./data
 ```
 
-
-### Step 2: Extract Raw Text (libri_raw.txt)
 LibriSpeech transcripts are stored in .trans.txt files containing both utterance IDs and text. Use the extraction script to strip the IDs and merge all text into a single file for training.
 
 Make sure the output path matches the configuration in your scripts:
@@ -34,7 +42,26 @@ chmod +x extract_libri_text.sh
 ./extract_libri_text.sh ./data/LibriSpeech ./src/data/tokenizers/resources/libri_raw.txt
 ```
 
-### Step 3: Train the Tokenizers
+ - Download the Normalized Text Corpus
+To train a robust tokenizer, we will use the external normalized text corpus provided by OpenSLR (LibriSpeech language model training text). This file contains a large amount of clean text data suitable for vocabulary building.
+
+URL: OpenSLR 11 (LibriSpeech LM corpus)
+
+File to download: librispeech-lm-norm.txt.gz
+
+Download and extract the text corpus:
+
+``````
+mkdir -p data/text_corpus
+cd data/text_corpus
+
+wget http://www.openslr.org/resources/11/librispeech-lm-norm.txt.gz
+gunzip librispeech-lm-norm.txt.gz
+``````
+
+- Concatenate `libri_raw.txt` and `librispeech-lm-norm.txt.gz` to make the final text corpus.
+
+### Step 2: Train the Tokenizers
 You can train models using either Unigram or BPE algorithms. The training script will automatically iterate through the predefined vocabulary sizes: 32, 128, 512, 2048, and 8192.
 
 Before running, open run.sh and ensure the OUTPUT_DIR path exists or is set to your preferred directory.
@@ -57,7 +84,7 @@ Then execute the script:
 ./run.sh
 ```
 
-### Step 4: Verify Output Artifacts
+### Step 3: Verify Output Artifacts
 Once run.sh finishes running successfully, verify that the tokenizer models and vocabularies have been properly generated in your specified OUTPUT_DIR.
 
 Navigate to your output directory and list the files:
@@ -74,7 +101,7 @@ You should see a pair of .model and .vocab files for each vocabulary size:
 - librispeech_unigram_2048.model & librispeech_unigram_2048.vocab
 - librispeech_unigram_8192.model & librispeech_unigram_8192.vocab
 
-### Step 5: Test and Load Tokenizer in Python
+### Step 4: Test and Load Tokenizer in Python
 To verify that your newly trained models are working correctly within your code, load them using the sentencepiece library and tokenize a sample sentence.
 
 Create a simple script or open an interactive Python shell:
