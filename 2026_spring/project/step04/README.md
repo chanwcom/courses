@@ -68,6 +68,7 @@ You may download it from the following link:
   https://drive.google.com/file/d/1X22hM6qZUi7dWhLZhQ42LAVJrH-7X_JM/view?usp=sharing
 ```
 &emsp;&emsp; Please download and decompress it. Then you will get:
+
 &emsp;&emsp; **librispeech_asr_train_text_and_librispeech_lm_norm.txt.gz**. This is the final file of this "Step 1". Instead of performing Step 1, you may just simply download this file instead.
 
 ### Step 2: Train the Tokenizers
