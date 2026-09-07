@@ -15,7 +15,6 @@ from transformers import AutoProcessor
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 from torch.utils import data
-import tensorflow as tf
 import torch
 import evaluate
 import numpy as np

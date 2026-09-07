@@ -40,7 +40,7 @@ Make sure the output path matches the configuration in your scripts:
 chmod +x extract_libri_text.sh
 
 # Run the extraction script
-./extract_libri_text.sh ./data/LibriSpeech ./src/data/tokenizers/resources/librispeech_asr_train_test.txt
+./extract_libri_text.sh ./data/LibriSpeech ./src/data/tokenizers/resources/librispeech_train_raw.txt
 ```
 
  - Download the Normalized Text Corpus

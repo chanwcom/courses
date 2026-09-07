@@ -258,8 +258,6 @@ def calculate_alpha_beta(label_trans_table, log_label_prob, label_len,
 
     for t in range(max_logit_len):
         # Calculates log_alpha recursively from the previous time step.
-
-        # Calculates log_alpha recursively from the previous time step.
         log_alpha[:, t, :] = (
             torch.logsumexp(
                 torch.add(torch.unsqueeze(prev_log_alpha, axis=2),

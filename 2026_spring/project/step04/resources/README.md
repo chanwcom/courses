@@ -21,7 +21,7 @@ Based on the specific environment (NAS storage), use the following command:
 ```bash
 ./extract_libri_text.sh \
     /mnt/nas2dual/database/libri_speech/org_decompressed \
-    libri_raw.txt
+    libri_train_raw.txt
 ```
 
 ## Implementation Standards
@@ -37,12 +37,12 @@ Based on the specific environment (NAS storage), use the following command:
 ## Data Management
 
 > [!IMPORTANT]
-> The output text files (e.g., libri_raw.txt) can be very large. Do not commit these files to the repository.
+> The output text files (e.g., libri_train_raw.txt) can be very large. Do not commit these files to the repository.
 
 Ensure your .gitignore includes the following:
 
 ```text
 # Ignore raw data outputs
-libri_raw.txt
+libri_train_raw.txt
 *.raw.txt
 ```

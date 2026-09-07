@@ -6,13 +6,13 @@ This script scans a LibriSpeech split (e.g., train-clean-100) and creates
 format.
 
 Example usage:
-    # Convert train-clean-100 with default shard size (in GB)
+    # Converts train-clean-100 with default shard size (in GB)
     python create_librispeech_webdataset.py \
         --dataset_dir ./LibriSpeech/train-clean-100 \
         --output_dir ./wds/train-clean-100 \
         --shard_size_gb 1.0
 
-    # Convert dev-clean with smaller shard size
+    # Converts dev-clean with smaller shard size
     python create_librispeech_webdataset.py \
         --dataset_dir ./LibriSpeech/dev-clean \
         --output_dir ./wds/dev-clean \
@@ -102,37 +102,40 @@ def write_shards(data_pairs: List[Tuple[str, str]],
         output_dir (str): Path to directory where shards are written.
         shard_size_gb (float): Maximum shard size in gigabytes.
     """
+    # Ensures the output directory exists, create if it doesn't.
     os.makedirs(output_dir, exist_ok=True)
+
+    # Initializes variables for shard ID and current shard size tracking.
     shard_id = 0
     current_size = 0
     sink = None
 
+    # Defines the shard path format and initialize the ShardWriter.
+    shard_path = os.path.join(output_dir, f"shard-%06d.tar")
+    sink = wds.ShardWriter(shard_path, maxsize=shard_size_gb * (1 << 30))
+
+    # Iterates through all data pairs (FLAC file path and transcript).
     for idx, (flac_path, transcript) in enumerate(
             tqdm(data_pairs, desc="Writing shards")):
+
+        # Reads the FLAC audio file into memory.
         with open(flac_path, "rb") as f:
             audio_bytes = f.read()
 
+        # Generates a unique key for the sample.
         sample_key = str(uuid.uuid4())
+
+        # Creates a sample dictionary with the audio and transcript.
         sample = {
             "__key__": sample_key,
             "flac": audio_bytes,
             "txt": transcript,
         }
 
-        est_sample_size = len(audio_bytes) + len(transcript.encode("utf-8"))
-
-        if (sink is None or
-                current_size + est_sample_size > shard_size_gb * BYTES_PER_GB):
-            if sink is not None:
-                sink.close()
-            shard_path = os.path.join(output_dir, "shard-%06d.tar")
-            sink = wds.ShardWriter(shard_path, maxcount=1000)
-            shard_id += 1
-            current_size = 0
-
+        # Writes the sample to the current shard.
         sink.write(sample)
-        current_size += est_sample_size
 
+    # Closes the ShardWriter after processing all the samples.
     if sink is not None:
         sink.close()
 
@@ -161,7 +164,7 @@ def main():
     parser.add_argument(
         "--min_shard_count",
         type=int,
-        default=0,
+        default=10,
         help="Minimum number of shards to generate. Overrides shard_size_gb "
              "if necessary."
     )
