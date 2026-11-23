@@ -1,4 +1,4 @@
-# XAI 610 Project Part 3: Speaker-Attributed Meeting Transcription and Summarization
+# XAI 610 Final Project: Speaker-Attributed Meeting Transcription and Summarization
 
 Baseline code for the AMI Meeting Corpus on a single 24 GB GPU.
 
