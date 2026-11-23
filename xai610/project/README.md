@@ -2,8 +2,12 @@
 
 Baseline code for the AMI Meeting Corpus on a single 24 GB GPU.
 
+The Speech LLM is a **text LLM (Qwen2.5-1.5B) extended with a speech encoder**.
+Whisper is not the LLM and Whisper ASR is not used: only the encoder of
+Whisper-small serves as the frozen speech encoder; the Whisper decoder is discarded.
+
 ```
-audio ─┬─> Whisper-small encoder (frozen) ─> projector ─> Qwen2.5-1.5B + ASR LoRA ─> "<spk1> ... <spk2> ..."
+audio ─┬─> speech encoder (Whisper-small encoder only, frozen) ─> projector ─> Qwen2.5-1.5B + ASR LoRA ─> "<spk1> ... <spk2> ..."
        └─> Nemotron 3 Diarization (frozen) ─> who spoke when ─> merge ─> Qwen2.5-1.5B + Summary LoRA ─> summary
 ```
 

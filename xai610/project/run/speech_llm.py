@@ -1,10 +1,14 @@
-"""A small Speech LLM: Whisper encoder (frozen) + projector + text LLM (LoRA).
+"""Speech LLM: a text LLM (Qwen2.5-1.5B-Instruct) extended to take audio input.
+
+The LLM is Qwen2.5-1.5B. Whisper is NOT the LLM and Whisper ASR is not run:
+only the encoder half of Whisper-small is borrowed as the speech encoder
+(audio -> features); the Whisper decoder is never loaded for decoding.
 
   audio (<= 30 s, 16 kHz)
-    -> Whisper-small encoder     : 1,500 frames x 768 (50 Hz), frozen
-    -> frame stacking (k = 5)    : 300 x 3,840 (10 Hz)
-    -> projector (2-layer MLP)   : 300 x d_llm, trained
-    -> LLM (Qwen2.5-1.5B-Instruct) with LoRA
+    -> speech encoder (Whisper-small encoder only) : 1,500 frames x 768 (50 Hz), frozen
+    -> frame stacking (k = 5)                      : 300 x 3,840 (10 Hz)
+    -> projector (2-layer MLP)                     : 300 x d_llm, trained
+    -> LLM: Qwen2.5-1.5B-Instruct (+ LoRA)         : generates the transcript
 
 The audio embeddings are spliced into a chat prompt:
   <|im_start|>user\n [AUDIO] \n{instruction}<|im_end|>\n<|im_start|>assistant\n{target}<|im_end|>
@@ -47,6 +51,7 @@ class SpeechLLM(nn.Module):
         super().__init__()
         self.device = device
         self.feature_extractor = WhisperFeatureExtractor.from_pretrained(encoder_name)
+        # Speech encoder: keep only the encoder of Whisper (decoder is discarded).
         self.encoder = WhisperModel.from_pretrained(
             encoder_name, dtype=torch.bfloat16).encoder.to(device).eval()
         self.encoder.requires_grad_(False)
